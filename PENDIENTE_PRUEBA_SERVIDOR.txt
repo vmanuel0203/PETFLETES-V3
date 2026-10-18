@@ -1,0 +1,69 @@
+PetFletes - adaptación a Postgres: PENDIENTE DE PRUEBA EN SERVIDOR
+===================================================================
+Estado: el código está escrito pero NUNCA se ha ejecutado contra un servidor Postgres real.
+Lo único comprobado hasta ahora (python test_v2.py, sin servidor):
+  - SQLite funciona igual que antes (pruebas 1 a 3).
+  - Las piezas de adaptación funcionan con objetos simulados (prueba 4): traducción de ? a %s,
+    filas por nombre/índice, Decimal->float, lastrowid vía RETURNING, conversión del esquema, candado.
+Todo lo demás debe verificarse en un proyecto de PRUEBAS. Cada sitio adaptado está marcado en db.py
+con "PG-PENDIENTE-PRUEBA" (búscalo con Ctrl+F).
+
+COMO PROBAR (Windows, proyecto de pruebas de Supabase; NUNCA con datos reales)
+  1) pip install -r requirements.txt
+  2) Pruebas automáticas contra el servidor (BORRA las 9 tablas de PetFletes de ese proyecto):
+        set PETFLETES_TEST_DATABASE_URL=postgresql://...
+        set PETFLETES_TEST_BORRAR_TABLAS=1
+        python test_v2.py
+     (la prueba 1 se omite en este modo: migra un archivo SQLite v1)
+     Antes de pasar a producción: las 5 pruebas deben dar OK (la 1 aparece omitida) y la lista de abajo completa.
+  3) La app contra el servidor:
+        set DATABASE_URL=postgresql://...
+        set PETFLETES_PG_PRUEBA=1
+        iniciar.bat demo
+  4) Solo cuando 2 y 3 pasen: poner PG_LISTO = True en db.py.
+
+LISTA DE VERIFICACION
+  Verificado en un servidor real (Supabase, Session pooler) con las pruebas 2 y 3 de test_v2.py:
+  [x] Se crean las 9 tablas con ids IDENTITY; init_db() corre dos veces sin error.
+  [x] Registro de usuarios y de tienda (ids por RETURNING id), creación de pedidos, confirmación de pago de la tienda.
+  [x] Ajuste de tarifa con tope y mínimo (LEAST/GREATEST), ofertas, aceptar viaje, entregar y cancelar.
+  [x] Listados de tienda y administrador, estadísticas, actualización de tienda (COALESCE).
+  Escrito pero aún NO corrido en servidor (prueba 4 de test_v2.py; volver a correr test_v2.py):
+  [ ] Búsqueda de productos sin distinguir mayúsculas (ILIKE).
+  [ ] Correo duplicado y calificación repetida (excepción de integridad de psycopg).
+  [ ] Elegir oferta, chat del pedido, chat de soporte y lista de hilos (GROUP BY).
+  [ ] Promedios y listados admin con AVG/ROUND (Decimal -> float).
+  [ ] Publicaciones y actividad de la comunidad (LIMIT).
+  Solo se pueden comprobar a mano con la app abierta (DATABASE_URL + PETFLETES_PG_PRUEBA=1):
+  [ ] Pantallas reales: puja con cuenta regresiva, mapa, chats y calificación desde la interfaz.
+  [ ] Dos navegadores a la vez (cliente y repartidor) sin bloqueos ni errores de conexión.
+  [ ] La app sigue respondiendo tras minutos de inactividad (el pool descarta conexiones cerradas).
+  [ ] Con el Transaction pooler (puerto 6543), que es el que se usaría en Streamlit Cloud.
+  [ ] Con la base ya poblada: reiniciar la app y comprobar que los datos siguen ahí.
+
+RIESGOS CONOCIDOS (sitios con más probabilidad de fallar)
+  - actualizar_tienda: COALESCE(?, sinpe) con parámetro sin tipo (puede requerir CAST explícito).
+  - Consultas con GROUP BY u.id que seleccionan otras columnas: válidas solo porque u.id es clave primaria.
+  - Funciones que abren una conexión mientras otra sigue abierta: en SQLite fallaba con "database is locked";
+    en Postgres puede esperar por bloqueos (pool de 5 conexiones).
+  - Código que captura un error de base de datos dentro del mismo "with conexion()" y sigue usándola:
+    en Postgres la transacción queda abortada (en SQLite no). Hoy los dos casos conocidos capturan fuera del with.
+  - Postgres sí exige las llaves foráneas; un mascotas.db de la v1 (tablas sin REFERENCES) puede traer filas
+    huérfanas que fallarían al copiarse. Lo manejará el script de migración (aún no escrito).
+  - Si se copian datos con ids existentes, hay que reiniciar los contadores (setval) o los nuevos INSERT chocarán.
+
+MANTENIMIENTO (escrito; la lógica del respaldo se probó con SQLite en la prueba 6, nada contra servidor)
+  [ ] scripts/respaldar_postgres.py contra Supabase: revisar que crea los 9 CSV, que los conteos coinciden con el
+      Table Editor y que sirve para restaurar (el script de restauración NO está escrito).
+  [ ] keepalive.yml: crear el secreto DATABASE_URL en GitHub, lanzarlo a mano (Actions > keepalive-supabase > Run workflow)
+      y comprobar que termina en verde.
+  [ ] Comprobar que Supabase cuenta esa consulta como actividad (no verificado): tras más de una semana sin
+      usuarios, el proyecto no debe aparecer pausado.
+  Nota: hasta donde sé, GitHub desactiva los flujos programados de repositorios públicos tras 60 días sin actividad
+  en el repositorio; si pasa, se reactiva desde la pestaña Actions.
+
+NO HECHO TODAVIA
+  - scripts/migrar_a_postgres.py (copia de datos de SQLite, setval, comparación de conteos) y script de restauración.
+  - Proyecto Supabase real, separado del de pruebas, y despliegue en Streamlit Cloud con los Secrets
+    (probar con el Transaction pooler).
+  - Respaldo automático programado (hoy es manual, desde tu PC).

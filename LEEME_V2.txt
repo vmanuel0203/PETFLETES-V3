@@ -1,0 +1,34 @@
+PetFletes v2.0
+==============
+Inicio rapido (Windows):   iniciar.bat          (modo normal)
+                           iniciar.bat demo     (cuentas y datos de prueba)
+
+Manual:  pip install -r requirements.txt
+         python -m streamlit run app.py
+
+Variables de entorno (opcionales):
+  PETFLETES_DEMO=1                 cuentas demo + ofertas simuladas
+  PETFLETES_ADMIN_PASSWORD=...     clave del admin en el PRIMER arranque (si no, se genera una
+                                   y se muestra una sola vez en la consola)
+
+Base de datos: si ya tienes un mascotas.db de la v1, copialo a esta carpeta. Al primer arranque
+la v2 hace una copia de seguridad (mascotas.db.bak-FECHA) y solo AGREGA columnas; no borra datos.
+Aviso: un mascotas.db de la v1 conserva admin@petfletes.cr con la clave admin123 y las cuentas demo
+(demo123). Cambia la clave del admin desde el menu de cuenta (icono de persona).
+
+Pruebas de la capa de datos:  python test_v2.py
+
+Base en la nube (PENDIENTE DE PRUEBA EN SERVIDOR; ver PENDIENTE_PRUEBA_SERVIDOR.txt):
+  DATABASE_URL=...                 cadena de conexión a Postgres (p. ej. Supabase). En Streamlit Cloud va en
+                                   los Secrets. Sin esta variable se usa SQLite local (mascotas.db).
+  PETFLETES_PG_PRUEBA=1            obligatoria mientras PG_LISTO sea False en db.py: solo para probar contra un
+                                   proyecto de PRUEBAS, nunca con datos reales.
+  PETFLETES_RESPALDO_HECHO=1       si la base de Postgres ya tiene datos y necesita migración, confirma que hiciste
+                                   un respaldo antes (en Postgres la copia no se hace sola).
+  Pruebas contra servidor:         ver PENDIENTE_PRUEBA_SERVIDOR.txt
+
+Mantenimiento de la base en la nube (PENDIENTE DE PRUEBA EN SERVIDOR):
+  scripts/respaldar_postgres.py    respaldo de solo lectura a CSV en respaldos/AAAAMMDD-HHMMSS/ (usa DATABASE_URL).
+                                   Contiene datos sensibles: guárdalo fuera de GitHub. Opción --conservar N.
+  .github/workflows/keepalive.yml  consulta mínima lunes y jueves para que el plan gratuito de Supabase no pause la base.
+                                   Requiere el secreto DATABASE_URL en el repositorio de GitHub.

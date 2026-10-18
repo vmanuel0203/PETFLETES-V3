@@ -1,0 +1,11 @@
+# Datos y secretos: nunca al repositorio
+mascotas.db
+mascotas.db.bak-*
+*.db
+.streamlit/secrets.toml
+secrets.toml
+.env
+__pycache__/
+*.pyc
+
+respaldos/
