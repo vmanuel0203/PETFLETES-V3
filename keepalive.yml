@@ -1,0 +1,27 @@
+# Evita que el plan gratuito de Supabase pause la base por inactividad.
+# Requiere el secreto DATABASE_URL del repositorio (Settings > Secrets and variables > Actions).
+# Usa la URL del Session pooler o Transaction pooler (funcionan con IPv4, que es lo que usa GitHub).
+name: keepalive-supabase
+
+on:
+  schedule:
+    - cron: "0 14 * * 1,4"   # lunes y jueves a las 14:00 UTC (cada 3-4 días)
+  workflow_dispatch: {}       # también se puede lanzar a mano desde la pestaña Actions
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "psycopg[binary]>=3.1"
+      - run: python scripts/keepalive.py
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
