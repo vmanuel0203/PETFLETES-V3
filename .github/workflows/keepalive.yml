@@ -8,7 +8,8 @@ on:
     - cron: "0 14 * * 1,4"   # lunes y jueves a las 14:00 UTC (cada 3-4 días)
   workflow_dispatch: {}       # también se puede lanzar a mano desde la pestaña Actions
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   ping:
